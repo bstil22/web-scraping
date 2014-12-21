@@ -1,13 +1,6 @@
-# https://www.youtube.com/watch?v=S4UEv_jjPL0
-# https://plus.googleapis.com/u/0/_/widget/render/comments?first_party_property=YOUTUBE&href=
-
-# Keywords   all_happy_keywords   all_sad_keywords
-# CommentThread    initialize(youtube_url)    populate [fill an array with Comment objects]   overall_sentiment
-# Comment   overall_sentiment   count_happy_keywords   count_sad_keywords
-
 require 'open-uri'
 require 'nokogiri'
-require 'htmlentities'
+require 'active_support/inflector'
 
 
 class Keywords
@@ -30,10 +23,39 @@ class CommentThread
     @thread.css("div.Ct").each do |item|
       match = item.to_s.match(/<div class="Ct">(.+)<\/div>/)
       if match
-        @all_comments << Comment.new(match) 
+        @all_comments << Comment.new(match.captures[0]) 
       end
-      # @all_comments << HTMLEntities.new.decode(comment_text_with_nbsp_and_shit).force_encoding("ASCII")
     end
+  end
+
+  def overall_sentiment
+    if total_happy_keywords > total_sad_keywords
+      "happy"
+    elsif total_sad_keywords > total_happy_keywords
+      "sad"
+    else
+      "zen"
+    end
+  end
+
+  def total_happy_keywords
+    counter = 0
+    @all_comments.each do |comment|
+      counter += comment.count_happy_keywords
+    end
+    counter
+  end
+
+  def total_sad_keywords
+    counter = 0
+    @all_comments.each do |comment|
+      counter += comment.count_sad_keywords
+    end
+    counter
+  end
+
+  def output_description
+    puts "The first #{@all_comments.length} comments are mostly #{overall_sentiment}. They contained #{total_happy_keywords} #{"happy keyword".pluralize(total_happy_keywords)} and #{total_sad_keywords} #{"sad keyword".pluralize(total_sad_keywords)}."
   end
 end
 
@@ -50,15 +72,27 @@ class Comment
       count = @text.downcase.scan(Regexp.new(keyword)).count
       counter += count
     end
+    counter
+  end
+
+  def count_sad_keywords
+    counter = 0
+    @keywords.sad.each do |keyword|
+      count = @text.downcase.scan(Regexp.new(keyword)).count
+      counter += count
+    end
+    counter
+  end
+
+  def overall_sentiment
+    if count_happy_keywords > count_sad_keywords
+      "happy"
+    elsif count_sad_keywords > count_happy_keywords
+      "sad"
+    end
   end
 end
 
-
-c = Comment.new("i love love love it")
-c.count_happy_keywords
-
-
-
-# a = CommentThread.new "https://www.youtube.com/watch?v=S4UEv_jjPL0"
-# a.populate
-
+c = CommentThread.new "https://www.youtube.com/watch?v=S4UEv_jjPL0"
+c.populate
+c.output_description
